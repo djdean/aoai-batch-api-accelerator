@@ -4,19 +4,18 @@ from Utilities import Utils
 import asyncio
 import aiohttp
 class AzureBatch:
-    def __init__(self, aoai_client, input_storage_handler, 
-                 error_storage_handler, processed_storage_handler, batch_path,
-                input_directory_client, local_download_path, output_directory, error_directory,
-                count_tokens=False):
+    def __init__(self, aoai_client, storage_elements,
+                local_download_path,count_tokens=False):
         self.aoai_client = aoai_client
-        self.input_storage_handler = input_storage_handler
-        self.error_storage_handler = error_storage_handler
-        self.processed_storage_handler = processed_storage_handler
+        self.input_storage_handler = storage_elements["input_storage_handler"]
+        self.error_storage_handler = storage_elements["error_storage_handler"]
+        self.processed_storage_handler = storage_elements["processed_storage_handler"]
+        batch_path = f"https://{self.input_storage_handler.storage_account_name}.blob.core.windows.net/{self.input_storage_handler.file_system_name}/"
         self.batch_path = batch_path
-        self.input_directory_client = input_directory_client
+        self.input_directory_client = self.input_storage_handler.get_directory_client()
         self.local_download_path = local_download_path
-        self.output_directory = output_directory
-        self.error_directory = error_directory
+        self.output_directory = self.processed_storage_handler.target_path
+        self.error_directory = self.error_storage_handler.target_path
         self.count_tokens = count_tokens
 
     async def process_all_files(self,files,micro_batch_size):

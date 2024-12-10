@@ -3,16 +3,21 @@ from azure.storage.filedatalake import (
     DataLakeDirectoryClient,
     FileSystemClient
 )
-import json
 class StorageHandler:
-    def __init__(self, storage_account_name, storage_account_key, file_system_name=None):
-        self.storage_account_name = storage_account_name
-        self.storage_account_key = storage_account_key
-        self.service_client = self.get_service_client_account_key(storage_account_name, storage_account_key)
+    def __init__(self, storage_config_data, file_system_name=None, path=None):
+        self.storage_account_name = storage_config_data['storage_account_name']
+        if "storage_account_key" in storage_config_data and storage_config_data["storage_account_key"] is not None:
+            self.credentials = storage_config_data["storage_account_key"]
+        elif "SAS_token" in storage_config_data and storage_config_data["SAS_token"] is not None:
+            self.credentials = storage_config_data["SAS_token"]
+        self.service_client = self.get_service_client_from_creds(self.storage_account_name, self.credentials)
         if file_system_name is not None:
+            self.file_system_name = file_system_name
             self.file_system_client = self.get_file_system_client(file_system_name)
         else:
+            self.file_system_name = None
             self.file_system_client = None
+        self.target_path = path
         self.byte_read_size = 50000
     def get_directories(self,path):
         paths = self.file_system_client.get_paths(path=path)
@@ -91,12 +96,16 @@ class StorageHandler:
         directory_client = self.file_system_client.create_directory(directory_name)
         return directory_client
     
-    def get_directory_client(self, directory_name: str) -> DataLakeDirectoryClient:
+    def get_directory_client(self, directory_name: str=None) -> DataLakeDirectoryClient:
+        if directory_name is None:
+            directory_name = self.target_path
         directory_client = self.file_system_client.get_directory_client(directory_name)
         return directory_client
     
-    def get_file_list(self, path: str) -> list:
+    def get_file_list(self, path: str=None) -> list:
         file_list = [] 
+        if path is None:
+            path = self.target_path
         paths = self.file_system_client.get_paths(path=path)
         for path in paths:
             if not path.is_directory:
@@ -134,9 +143,9 @@ class StorageHandler:
         file_system_client = self.service_client.get_file_system_client(file_system_name)
         return file_system_client
 
-    def get_service_client_account_key(self, account_name, account_key) -> DataLakeServiceClient:
+    def get_service_client_from_creds(self, account_name, creds) -> DataLakeServiceClient:
         account_url = f"https://{account_name}.dfs.core.windows.net"
-        service_client = DataLakeServiceClient(account_url, credential=account_key)
-
+        service_client = DataLakeServiceClient(account_url, credential=creds)
         return service_client
+    
 
